@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const LyndaCourseUrlFormat = "https://www.lynda.com/ajax/player?courseId=%s&type=course"
+const LyndaCourseUrlFormat = "https://www.lynda.com/ajax/player?courseId=%d&type=course"
 const LyndaVideoUrlFormat = "https://www.lynda.com/ajax/player?courseId=%d&videoId=%d&type=video"
 
 type LyndaCourse struct {

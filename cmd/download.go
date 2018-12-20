@@ -27,6 +27,7 @@ import (
 	"github.com/cheggaaa/pb"
 	"github.com/funayman/lynda-dl/client"
 	"github.com/funayman/lynda-dl/course"
+	"github.com/funayman/lynda-dl/downloader"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 )
@@ -35,20 +36,23 @@ const (
 	badRunes = "?!/;:öä"
 )
 
+var (
+	id         int
+	cookiepath string
+)
+
 // downloadCmd represents the download command
 var downloadCmd = &cobra.Command{
 	Use:   "download",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Download a Lynda course",
+	// Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := client.New()
+		// check if cookie file exists
+		if _, err := os.Stat(cookiepath); os.IsNotExist(err) {
+			log.Fatalf("cookie file: %s does not exist\n", cookiepath)
+		}
 
-		id := "753913"
+		client := client.New()
 
 		// move to home directory
 		home, err := homedir.Dir()
@@ -68,8 +72,8 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 
-		fmt.Println(c.BuildReadMe())
-		os.Exit(0)
+		dl := downloader.New()
+		dl.Get(c)
 
 		// build folders
 		folder := c.Title
@@ -93,8 +97,16 @@ to quickly create a Cobra application.`,
 			chapter.Title = folder // replace incase of any manipluation
 		}
 
+		// write content.md
+		content, err := os.Create("CONTENT.md")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer content.Close()
+		content.WriteString(c.BuildReadMe())
+
 		// download videos
-		fmt.Printf("Downloading Videos for %s\n", c.Title)
+		fmt.Printf("*** Downloading Videos for %s ***\n", c.Title)
 		for _, chapter := range c.Chapters {
 			err = os.Chdir(chapter.Title)
 			if err != nil {
@@ -107,7 +119,7 @@ to quickly create a Cobra application.`,
 
 				// get JSON feed for video
 				fmt.Println("Grabbing JSON feed...")
-				data, err := exec.Command("curl", "-L", url, "-b", "/Volumes/Macintosh HD/Users/funayman/Downloads/cookies.txt").Output()
+				data, err := exec.Command("curl", "-L", url, "-b", cookiepath).Output()
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -118,10 +130,8 @@ to quickly create a Cobra application.`,
 					log.Fatal(err)
 				}
 
-				if v.Title == "" {
-					// something went wrong
-					fmt.Println(url)
-					log.Fatal(errors.New("error parsing data; no title; cURL output: " + string(data)))
+				if v.Title == "" { // something went wrong
+					log.Fatalf("error parsing data; no title\n-> cURL output: %s\n-> url: %s", string(data), url)
 				}
 
 				var videoUrl string
@@ -173,17 +183,17 @@ to quickly create a Cobra application.`,
 
 		fmt.Println("COMPLETE")
 
-		// out, err := exec.Command("curl", "-L", "https://www.lynda.com/ajax/player?courseId=753913&videoId=775920&type=video", "-b", "../../../../../../Downloads/cookies.txt").Output()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// fmt.Println(string(out))
-
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(downloadCmd)
+
+	downloadCmd.Flags().IntVarP(&id, "course-id", "i", 0, "Lynda course id")
+	downloadCmd.MarkFlagRequired("course-id")
+
+	downloadCmd.Flags().StringVarP(&cookiepath, "cookies", "c", "", "path to cookies.txt")
+	downloadCmd.MarkFlagRequired("cookies")
 
 	// Here you will define your flags and configuration settings.
 
