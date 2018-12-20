@@ -2,17 +2,14 @@ package course
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
-	"github.com/cheggaaa/pb"
 	"github.com/funayman/lynda-dl/client"
+	"github.com/funayman/lynda-dl/util"
 	homedir "github.com/mitchellh/go-homedir"
 )
 
@@ -126,19 +123,32 @@ func (c *LyndaCourse) Download() (err error) {
 	}
 	os.Chdir(home)
 
-	c.buildFolders()
-	c.writeReadme()
-	c.downloadCourse()
+	err = c.buildFolders()
+	if err != nil {
+		return err
+	}
+
+	err = c.writeReadme()
+	if err != nil {
+		return err
+	}
+
+	err = c.downloadCourse()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (c *LyndaCourse) downloadCourse() (err error) {
+	lyndaClient := client.GetInstance()
+
 	// download videos
 	fmt.Printf("*** Downloading Videos for %s ***\n", c.Title)
 	for _, chapter := range c.Chapters {
 		err = os.Chdir(chapter.Title)
 		if err != nil {
-			log.Fatal(err)
+			return
 		}
 
 		for _, video := range chapter.Videos {
@@ -147,19 +157,19 @@ func (c *LyndaCourse) downloadCourse() (err error) {
 
 			// get JSON feed for video
 			fmt.Println("Grabbing JSON feed...")
-			data, err := exec.Command("curl", "-L", url, "-b", cookiepath).Output()
-			if err != nil {
-				log.Fatal(err)
-			}
 
+			data, err := lyndaClient.GetVideoJsonData(url)
+			if err != nil {
+				return err
+			}
 			// unmarshal cURL output
 			v, err := unmarshalVideo(data)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 
 			if v.Title == "" { // something went wrong
-				log.Fatalf("error parsing data; no title\n-> cURL output: %s\n-> url: %s", string(data), url)
+				return fmt.Errorf("error parsing data; no title\n-> cURL output: %s\n-> url: %s", string(data), url)
 			}
 
 			var videoUrl string
@@ -174,65 +184,62 @@ func (c *LyndaCourse) downloadCourse() (err error) {
 			}
 
 			if videoUrl == "" {
-				log.Fatal(errors.New("no available videos"))
+				return fmt.Errorf("no available videos")
 			}
 
 			fmt.Printf("Downloading %s...\n", v.Title)
 
 			// ready to go do the actual downloading
-			resp, err := client.Get(videoUrl)
+			resp, err := lyndaClient.Get(videoUrl)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 
 			contentLength := resp.Header.Get("Content-Length")
 			length, _ := strconv.Atoi(contentLength)
 
-			bar := pb.New(length).SetUnits(pb.U_BYTES)
+			bar := util.NewBar(length)
 			bar.Start()
 
-			fileName := fmt.Sprintf("%02d - %s.mp4", v.VideoIndex, v.Title)
+			fileName := util.CleanText(fmt.Sprintf("%02d - %s.mp4", v.VideoIndex, v.Title))
 			f, err := os.Create(fileName)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 
 			reader := bar.NewProxyReader(resp.Body)
 			io.Copy(f, reader)
 
 			bar.Finish()
+			fmt.Println()
 		}
 
 		err = os.Chdir("..")
 		if err != nil {
-			log.Fatal(err)
+			return
 		}
 	}
 
+	return nil
 }
 
-func (c *LyndaCourse) buildFolders() error {
-	folder := c.Title
-	for _, r := range badRunes {
-		folder = strings.Replace(folder, string(r), "", -1)
-	}
+func (c *LyndaCourse) buildFolders() (err error) {
+	folder := util.CleanText(c.Title)
 	err = os.Mkdir(folder, os.ModePerm)
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
 	os.Chdir(folder)
 	for _, chapter := range c.Chapters {
-		folder := chapter.Title
-		for _, r := range badRunes {
-			folder = strings.Replace(folder, string(r), "", -1)
-		}
+		folder := util.CleanText(chapter.Title)
 		err = os.Mkdir(folder, os.ModePerm)
 		if err != nil {
-			log.Fatal(err)
+			return
 		}
 		chapter.Title = folder // replace incase of any manipluation
 	}
 
+	return nil
 }
 
 func unmarshal(data io.Reader) (c LyndaCourse, err error) {

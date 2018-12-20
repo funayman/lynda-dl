@@ -19,12 +19,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/funayman/lynda-dl/client"
 	"github.com/funayman/lynda-dl/course"
 	"github.com/spf13/cobra"
-)
-
-const (
-	badRunes = "?!/;:öä"
 )
 
 var (
@@ -43,8 +40,17 @@ var downloadCmd = &cobra.Command{
 			log.Fatalf("cookie file: %s does not exist\n", cookiepath)
 		}
 
-		c := course.Build(id)
-		c.Download()
+		client.Init(cookiepath)
+
+		c, err := course.Build(id)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = c.Download()
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		fmt.Println("COMPLETE")
 

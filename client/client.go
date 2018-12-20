@@ -6,22 +6,41 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/aki237/nscjar"
 	"golang.org/x/net/publicsuffix"
 )
 
-var client *http.Client
+type lyndaClient struct {
+	net *http.Client
 
-func GetInstance() *http.Client {
+	cookiePath string
+}
+
+var client *lyndaClient
+
+func Init(cookiePath string) {
+	client = &lyndaClient{cookiePath: cookiePath, net: &http.Client{}}
+}
+
+func GetInstance() *lyndaClient {
 
 	if client == nil {
-		return &http.Client{}
+		return &lyndaClient{net: &http.Client{}}
 	}
 
 	return client
 	// return &http.Client{Jar: bakeCookies(cookieFile)}
+}
+
+func (c *lyndaClient) Get(url string) (*http.Response, error) {
+	return c.net.Get(url)
+}
+
+func (c *lyndaClient) GetVideoJsonData(url string) ([]byte, error) {
+	return exec.Command("curl", "-L", url, "-b", c.cookiePath).Output()
 }
 
 func bakeCookies(cookieFile string) http.CookieJar {
