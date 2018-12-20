@@ -12,11 +12,16 @@ import (
 	"golang.org/x/net/publicsuffix"
 )
 
-func New() *http.Client {
+var client *http.Client
 
+func GetInstance() *http.Client {
+
+	if client == nil {
+		return &http.Client{}
+	}
+
+	return client
 	// return &http.Client{Jar: bakeCookies(cookieFile)}
-
-	return &http.Client{}
 }
 
 func bakeCookies(cookieFile string) http.CookieJar {

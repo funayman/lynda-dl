@@ -15,20 +15,11 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
-	"os/exec"
-	"strconv"
-	"strings"
 
-	"github.com/cheggaaa/pb"
-	"github.com/funayman/lynda-dl/client"
 	"github.com/funayman/lynda-dl/course"
-	"github.com/funayman/lynda-dl/downloader"
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 )
 
@@ -52,134 +43,8 @@ var downloadCmd = &cobra.Command{
 			log.Fatalf("cookie file: %s does not exist\n", cookiepath)
 		}
 
-		client := client.New()
-
-		// move to home directory
-		home, err := homedir.Dir()
-		if err != nil {
-			log.Fatal(err)
-		}
-		os.Chdir(home)
-
-		// get course data
-		url := fmt.Sprintf(course.LyndaCourseUrlFormat, id)
-		resp, err := client.Get(url)
-		if err != nil {
-			log.Fatal(err)
-		}
-		c, err := course.Unmarshal(resp.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		dl := downloader.New()
-		dl.Get(c)
-
-		// build folders
-		folder := c.Title
-		for _, r := range badRunes {
-			folder = strings.Replace(folder, string(r), "", -1)
-		}
-		err = os.Mkdir(folder, os.ModePerm)
-		if err != nil {
-			log.Fatal(err)
-		}
-		os.Chdir(folder)
-		for _, chapter := range c.Chapters {
-			folder := chapter.Title
-			for _, r := range badRunes {
-				folder = strings.Replace(folder, string(r), "", -1)
-			}
-			err = os.Mkdir(folder, os.ModePerm)
-			if err != nil {
-				log.Fatal(err)
-			}
-			chapter.Title = folder // replace incase of any manipluation
-		}
-
-		// write content.md
-		content, err := os.Create("CONTENT.md")
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer content.Close()
-		content.WriteString(c.BuildReadMe())
-
-		// download videos
-		fmt.Printf("*** Downloading Videos for %s ***\n", c.Title)
-		for _, chapter := range c.Chapters {
-			err = os.Chdir(chapter.Title)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			for _, video := range chapter.Videos {
-				fmt.Printf("Video: %s\n", video.Title)
-				url := fmt.Sprintf(course.LyndaVideoUrlFormat, video.CourseID, video.ID)
-
-				// get JSON feed for video
-				fmt.Println("Grabbing JSON feed...")
-				data, err := exec.Command("curl", "-L", url, "-b", cookiepath).Output()
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				// unmarshal cURL output
-				v, err := course.UnmarshalVideo(data)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				if v.Title == "" { // something went wrong
-					log.Fatalf("error parsing data; no title\n-> cURL output: %s\n-> url: %s", string(data), url)
-				}
-
-				var videoUrl string
-				if v.Streams.Main.Format1080 != "" {
-					videoUrl = v.Streams.Main.Format1080
-				} else if v.Streams.Main.Format720 != "" {
-					videoUrl = v.Streams.Main.Format720
-				} else if v.Streams.Main.Format540 != "" {
-					videoUrl = v.Streams.Main.Format540
-				} else if v.Streams.Main.Format360 != "" {
-					videoUrl = v.Streams.Main.Format360
-				}
-
-				if videoUrl == "" {
-					log.Fatal(errors.New("no available videos"))
-				}
-
-				fmt.Printf("Downloading %s...\n", v.Title)
-
-				// ready to go do the actual downloading
-				resp, err := client.Get(videoUrl)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				contentLength := resp.Header.Get("Content-Length")
-				length, _ := strconv.Atoi(contentLength)
-
-				bar := pb.New(length).SetUnits(pb.U_BYTES)
-				bar.Start()
-
-				fileName := fmt.Sprintf("%02d - %s.mp4", v.VideoIndex, v.Title)
-				f, err := os.Create(fileName)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				reader := bar.NewProxyReader(resp.Body)
-				io.Copy(f, reader)
-
-				bar.Finish()
-			}
-
-			err = os.Chdir("..")
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
+		c := course.Build(id)
+		c.Download()
 
 		fmt.Println("COMPLETE")
 
