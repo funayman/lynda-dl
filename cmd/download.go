@@ -55,6 +55,9 @@ var downloadCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(downloadCmd)
 
+	downloadCmd.Flags().IntVarP(&id, "course-id", "i", 0, "Lynda course id")
+	downloadCmd.MarkFlagRequired("course-id")
+
 	downloadCmd.Flags().StringVarP(&cookiepath, "cookies", "c", "", "path to cookies.txt")
 	downloadCmd.MarkFlagRequired("cookies")
 
