@@ -140,6 +140,16 @@ func (c *LyndaCourse) Download() (err error) {
 	return nil
 }
 
+func (c *LyndaCourse) Print() {
+	fmt.Println(c.Title)
+	for _, chapter := range c.Chapters {
+		fmt.Printf("|--> %s\n", chapter.Title)
+		for _, video := range chapter.Videos {
+			fmt.Printf("|  |--> %s\n", video.Title)
+		}
+	}
+}
+
 func (c *LyndaCourse) downloadCourse() (err error) {
 	lyndaClient := client.GetInstance()
 

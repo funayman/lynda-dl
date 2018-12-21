@@ -23,7 +23,11 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
+var (
+	cfgFile    string
+	id         int
+	cookiepath string
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -60,6 +64,9 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	rootCmd.Flags().IntVarP(&id, "course-id", "i", 0, "Lynda course id")
+	rootCmd.MarkFlagRequired("course-id")
 }
 
 // initConfig reads in config file and ENV variables if set.

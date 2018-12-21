@@ -15,23 +15,23 @@
 package cmd
 
 import (
-	"fmt"
+	"log"
 
+	"github.com/funayman/lynda-dl/course"
 	"github.com/spf13/cobra"
 )
 
 // listCmd represents the list command
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "view the contents of a course",
+	// Long: ``
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("list called")
+		c, err := course.Build(id)
+		if err != nil {
+			log.Fatal(err)
+		}
+		c.Print()
 	},
 }
 
@@ -47,4 +47,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// listCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	listCmd.Flags().IntVarP(&id, "course-id", "i", 0, "Lynda course id")
+	listCmd.MarkFlagRequired("course-id")
 }

@@ -24,11 +24,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	id         int
-	cookiepath string
-)
-
 // downloadCmd represents the download command
 var downloadCmd = &cobra.Command{
 	Use:   "download",
@@ -59,9 +54,6 @@ var downloadCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(downloadCmd)
-
-	downloadCmd.Flags().IntVarP(&id, "course-id", "i", 0, "Lynda course id")
-	downloadCmd.MarkFlagRequired("course-id")
 
 	downloadCmd.Flags().StringVarP(&cookiepath, "cookies", "c", "", "path to cookies.txt")
 	downloadCmd.MarkFlagRequired("cookies")
