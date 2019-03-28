@@ -156,7 +156,7 @@ func (c *LyndaCourse) downloadCourse() (err error) {
 	// download videos
 	fmt.Printf("*** Downloading Videos for %s ***\n", c.Title)
 	for _, chapter := range c.Chapters {
-		err = os.Chdir(chapter.Title)
+		err = os.Chdir(util.CleanText(chapter.Title))
 		if err != nil {
 			return
 		}
