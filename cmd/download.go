@@ -103,7 +103,7 @@ func init() {
 	downloadCmd.Flags().StringVarP(&cookiepath, "cookies", "c", "", "path to cookies.txt")
 	downloadCmd.MarkFlagRequired("cookies")
 
-	downloadCmd.Flags().BoolVar(&isLearningPath, "learning-path", false, "Url for Learning Path rather than course")
+	downloadCmd.Flags().BoolVar(&isLearningPath, "learning-path", false, "Url provided is for a Learning Path rather than course")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
