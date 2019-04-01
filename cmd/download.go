@@ -16,21 +16,19 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
+	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 
 	"github.com/funayman/lynda-dl/client"
 	"github.com/funayman/lynda-dl/course"
+	"github.com/funayman/lynda-dl/util"
 	"github.com/spf13/cobra"
 )
 
 const (
-	CourseRegexp       = `https?://(?:www\.)?(?:lynda\.com|educourse\.ga)/(?:(?:[^/]+/){2,3}(?P<courseId>\d+))`
-	RespCourseIdRegexp = `data-course-id="(?:(?P<courseId>\d+))"`
+	CourseRegexp = `https?://(?:www\.)?(?:lynda\.com|educourse\.ga)/(?:(?:[^/]+/){2,3}(?P<courseId>\d+))`
 )
 
 var (
@@ -48,60 +46,55 @@ var downloadCmd = &cobra.Command{
 			log.Fatalf("cookie file: %s does not exist\n", cookiepath)
 		}
 
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		uniqueIds := make(map[string]bool)
-		courseIds := make([]int, 0)
-
-		if isLearningPath {
-			if len(args) == 0 {
-				log.Fatal("URL required for learning path")
-			}
-
-			r := regexp.MustCompile(RespCourseIdRegexp)
-
-			resp, err := http.Get(args[0])
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			body, _ := ioutil.ReadAll(resp.Body)
-
-			courseIdMatches := r.FindAllStringSubmatch(string(body), -1)
-			for _, cid := range courseIdMatches {
-				stringId := cid[1]
-
-				if _, ok := uniqueIds[stringId]; ok {
-					continue
-				}
-
-				uniqueIds[stringId] = true
-				id, _ := strconv.Atoi(stringId)
-				courseIds = append(courseIds, id)
-			}
-
-			fmt.Println(courseIds)
-		} else {
-			courseIds = append(courseIds, id)
+		if len(args) == 0 {
+			log.Fatal("download command requires a URL")
 		}
 
-		client.Init(cookiepath)
-		for _, id := range courseIds {
+		// if URLs are passed, ensure they're valid
+		for _, argUrl := range args {
+			if _, err := url.ParseRequestURI(argUrl); err != nil {
+				log.Fatalf("URL %s is malformed", argUrl)
+			}
+		}
 
-			c, err := course.Build(id)
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		client.Init(cookiepath)
+
+		// check for --learning-path
+		if isLearningPath {
+			courseIds := util.ExtractCourseIdsFromLearningPath(args[0])
+			for _, id := range courseIds {
+				c, err := course.Build(id)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				err = c.Download()
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+		}
+
+		params := util.ParseUrl(args[0])
+		if params["videoId"] != "" {
+			// download video only
+		} else if params["courseId"] != "" {
+			stringId := params["courseId"]
+			courseId, _ := strconv.Atoi(stringId)
+			c, err := course.Build(courseId)
 			if err != nil {
-				// fmt.Errorf("[ERROR] Cannot build course '%s'\n\terr := %s\n", c.Title, err)
 				log.Fatal(err)
 			}
 
 			err = c.Download()
 			if err != nil {
-				fmt.Println(err)
-				// fmt.Errorf("[ERROR] Cannot download course '%s'\n\terr := %s\n", c.Title, err.Error())
-				continue
+				log.Fatal(err)
 			}
 		}
-		fmt.Println("COMPLETE")
+
+		fmt.Println("All Downloads Complete")
 	},
 }
 
@@ -124,17 +117,4 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// downloadCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-}
-
-func getParams(regEx, url string) (paramsMap map[string]string) {
-	var compRegEx = regexp.MustCompile(regEx)
-	match := compRegEx.FindStringSubmatch(url)
-
-	paramsMap = make(map[string]string)
-	for i, name := range compRegEx.SubexpNames() {
-		if i > 0 && i <= len(match) {
-			paramsMap[name] = match[i]
-		}
-	}
-	return
 }
