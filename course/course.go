@@ -222,6 +222,11 @@ func (c *LyndaCourse) downloadCourse() (err error) {
 		}
 	}
 
+	err = os.Chdir("..")
+	if err != nil {
+		return
+	}
+
 	return nil
 }
 
