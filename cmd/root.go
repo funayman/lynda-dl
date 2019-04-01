@@ -25,7 +25,6 @@ import (
 
 var (
 	cfgFile    string
-	id         int
 	cookiepath string
 )
 
@@ -63,9 +62,6 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-
-	rootCmd.Flags().IntVarP(&id, "course-id", "i", 0, "Lynda course id")
-	rootCmd.MarkFlagRequired("course-id")
 }
 
 // initConfig reads in config file and ENV variables if set.

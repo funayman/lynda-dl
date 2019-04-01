@@ -16,8 +16,10 @@ package cmd
 
 import (
 	"log"
+	"net/url"
 
 	"github.com/funayman/lynda-dl/course"
+	"github.com/funayman/lynda-dl/util"
 	"github.com/spf13/cobra"
 )
 
@@ -25,13 +27,29 @@ import (
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "view the contents of a course",
-	// Long: ``
-	Run: func(cmd *cobra.Command, args []string) {
-		c, err := course.Build(id)
-		if err != nil {
-			log.Fatal(err)
+	PreRun: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 {
+			log.Fatal("list command requires a URL")
 		}
-		c.Print()
+
+		// if URLs are passed, ensure they're valid
+		for _, argUrl := range args {
+			if _, err := url.ParseRequestURI(argUrl); err != nil {
+				log.Fatalf("URL %s is malformed", argUrl)
+			}
+		}
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		params := util.ParseUrl(args[0])
+		if courseId, ok := params["courseId"]; ok {
+			c, err := course.Build(courseId)
+			if err != nil {
+				log.Fatal(err)
+			}
+			c.Print()
+		} else {
+			log.Fatal("Could not find course id")
+		}
 	},
 }
 
@@ -47,7 +65,4 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// listCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
-	listCmd.Flags().IntVarP(&id, "course-id", "i", 0, "Lynda course id")
-	listCmd.MarkFlagRequired("course-id")
 }

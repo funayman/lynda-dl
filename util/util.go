@@ -67,14 +67,18 @@ func ExtractCourseIdsFromLearningPath(url string) []int {
 	return courseIds
 }
 
-func ParseUrl(url string) (paramsMap map[string]string) {
+func ParseUrl(url string) (paramsMap map[string]int) {
 	r := regexp.MustCompile(CourseVideoRegexp)
 	match := r.FindStringSubmatch(url)
 
-	paramsMap = make(map[string]string)
+	paramsMap = make(map[string]int)
 	for i, name := range r.SubexpNames() {
 		if i > 0 && i <= len(match) {
-			paramsMap[name] = match[i]
+			idMatch, err := strconv.Atoi(match[i])
+			if err != nil {
+				continue
+			}
+			paramsMap[name] = idMatch
 		}
 	}
 

@@ -19,7 +19,6 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"strconv"
 
 	"github.com/funayman/lynda-dl/client"
 	"github.com/funayman/lynda-dl/course"
@@ -77,20 +76,20 @@ var downloadCmd = &cobra.Command{
 			}
 		}
 
-		params := util.ParseUrl(args[0])
-		if params["videoId"] != "" {
-			// download video only
-		} else if params["courseId"] != "" {
-			stringId := params["courseId"]
-			courseId, _ := strconv.Atoi(stringId)
-			c, err := course.Build(courseId)
-			if err != nil {
-				log.Fatal(err)
-			}
+		for _, url := range args {
+			params := util.ParseUrl(url)
+			if _, ok := params["videoId"]; ok {
+				// TODO download video only
+			} else if courseId, ok := params["courseId"]; ok {
+				c, err := course.Build(courseId)
+				if err != nil {
+					log.Fatal(err)
+				}
 
-			err = c.Download()
-			if err != nil {
-				log.Fatal(err)
+				err = c.Download()
+				if err != nil {
+					log.Fatal(err)
+				}
 			}
 		}
 
@@ -100,9 +99,6 @@ var downloadCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(downloadCmd)
-
-	downloadCmd.Flags().IntVarP(&id, "course-id", "i", 0, "Lynda course id")
-	// downloadCmd.MarkFlagRequired("course-id")
 
 	downloadCmd.Flags().StringVarP(&cookiepath, "cookies", "c", "", "path to cookies.txt")
 	downloadCmd.MarkFlagRequired("cookies")

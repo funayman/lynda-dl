@@ -10,7 +10,6 @@ import (
 
 	"github.com/funayman/lynda-dl/client"
 	"github.com/funayman/lynda-dl/util"
-	homedir "github.com/mitchellh/go-homedir"
 )
 
 const LyndaCourseUrlFormat = "https://www.lynda.com/ajax/player?courseId=%d&type=course"
@@ -116,13 +115,6 @@ func (c *LyndaCourse) writeReadme() (err error) {
 }
 
 func (c *LyndaCourse) Download() (err error) {
-	// move to home directory
-	home, err := homedir.Dir()
-	if err != nil {
-		return err
-	}
-	os.Chdir(home)
-
 	err = c.buildFolders()
 	if err != nil {
 		return err
