@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"net/url"
@@ -32,6 +33,8 @@ const (
 
 var (
 	isLearningPath bool
+	listFilePath   string
+	listFile       *os.File
 )
 
 // downloadCmd represents the download command
@@ -40,22 +43,33 @@ var downloadCmd = &cobra.Command{
 	Short: "Download a Lynda course",
 	// Long:  ``,
 	PreRun: func(cmd *cobra.Command, args []string) {
+		var err error
+
 		// check if cookie file exists
 		if _, err := os.Stat(cookiepath); os.IsNotExist(err) {
 			log.Fatalf("cookie file: %s does not exist\n", cookiepath)
 		}
 
-		if len(args) == 0 {
-			log.Fatal("download command requires a URL")
+		// check if using file instead of args
+		if listFilePath != "" {
+			listFile, err = os.Open(listFilePath)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			return
 		}
 
-		// if URLs are passed, ensure they're valid
+		if len(args) == 0 {
+			log.Fatal("download command requires a URL or a file containing URLs using --file")
+		}
+
+		// ensure URLs are valid if passed
 		for _, argUrl := range args {
 			if _, err := url.ParseRequestURI(argUrl); err != nil {
 				log.Fatalf("URL %s is malformed", argUrl)
 			}
 		}
-
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		client.Init(cookiepath)
@@ -76,6 +90,19 @@ var downloadCmd = &cobra.Command{
 			}
 		}
 
+		// check for input file
+		scanner := bufio.NewScanner(listFile)
+		for scanner.Scan() {
+			line := scanner.Text()
+			// ensure URLs are valid
+			if _, err := url.ParseRequestURI(line); err != nil {
+				log.Fatalf("URL %s is malformed", line)
+			}
+
+			args = append(args, line)
+		}
+
+		// download like normal
 		for _, url := range args {
 			params := util.ParseUrl(url)
 			if _, ok := params["videoId"]; ok {
@@ -104,6 +131,8 @@ func init() {
 	downloadCmd.MarkFlagRequired("cookies")
 
 	downloadCmd.Flags().BoolVar(&isLearningPath, "learning-path", false, "Url provided is for a Learning Path rather than course")
+
+	downloadCmd.Flags().StringVarP(&listFilePath, "file", "f", "", "path to text file containing course urls (not usable with --learning-path)")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
